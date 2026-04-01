@@ -1,0 +1,46 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=mysql://streamr:streamr@db:3306/streamr
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=http://localhost:3000
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - FFMPEG_PATH=ffmpeg
+      - FFPROBE_PATH=ffprobe
+    volumes:
+      - media:/media
+      - cache:/app/tmp
+      - images:/app/public/images/media
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mariadb:11
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=streamr
+      - MYSQL_USER=streamr
+      - MYSQL_PASSWORD=streamr
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  media:
+  cache:
+  images:

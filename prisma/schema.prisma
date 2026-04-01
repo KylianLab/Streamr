@@ -1,0 +1,410 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────
+// ENUMS
+// ──────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum MediaType {
+  MOVIE
+  SERIES
+}
+
+enum MediaStatus {
+  PENDING
+  MATCHED
+  UNMATCHED
+  HIDDEN
+}
+
+enum ScanStatus {
+  IDLE
+  SCANNING
+  ERROR
+}
+
+enum SubtitleFormat {
+  SRT
+  VTT
+  ASS
+  SSA
+}
+
+// ──────────────────────────────────────────────
+// AUTH & PROFILES
+// ──────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  hashedPassword String
+  name           String
+  role           UserRole @default(USER)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  profiles    Profile[]
+  xtreamCodes XtreamCode[]
+
+  @@map("users")
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  name      String
+  avatarUrl String?
+  isKid     Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchHistory WatchHistory[]
+  watchlist    Watchlist[]
+
+  @@index([userId])
+  @@map("profiles")
+}
+
+// ──────────────────────────────────────────────
+// MEDIA CORE
+// ──────────────────────────────────────────────
+
+model Media {
+  id            String      @id @default(uuid())
+  type          MediaType
+  title         String
+  originalTitle String?
+  overview      String?     @db.Text
+  tagline       String?
+  releaseDate   DateTime?
+  endDate       DateTime?
+  rating        Float?
+  voteCount     Int?
+  popularity    Float?
+  contentRating String?
+  runtime       Int?
+  posterPath    String?
+  backdropPath  String?
+  logoPath      String?
+  trailerUrl    String?
+  tmdbId        Int?        @unique
+  imdbId        String?     @unique
+  status        MediaStatus @default(PENDING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  genres     MediaGenre[]
+  cast       MediaCast[]
+  seasons    Season[]
+  mediaFiles MediaFile[]
+  watchlist  Watchlist[]
+
+  @@index([type])
+  @@index([title])
+  @@index([status])
+  @@fulltext([title, originalTitle])
+  @@map("media")
+}
+
+model Genre {
+  id     String       @id @default(uuid())
+  name   String       @unique
+  tmdbId Int?         @unique
+  media  MediaGenre[]
+
+  @@map("genres")
+}
+
+model MediaGenre {
+  mediaId String
+  genreId String
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([mediaId, genreId])
+  @@map("media_genres")
+}
+
+model Person {
+  id         String      @id @default(uuid())
+  name       String
+  profileUrl String?
+  tmdbId     Int?        @unique
+  cast       MediaCast[]
+
+  @@index([name])
+  @@map("people")
+}
+
+model MediaCast {
+  id        String  @id @default(uuid())
+  mediaId   String
+  personId  String
+  character String?
+  order     Int     @default(0)
+
+  media  Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, personId, character])
+  @@index([mediaId])
+  @@map("media_cast")
+}
+
+// ──────────────────────────────────────────────
+// SERIES STRUCTURE
+// ──────────────────────────────────────────────
+
+model Season {
+  id           String    @id @default(uuid())
+  mediaId      String
+  seasonNumber Int
+  name         String?
+  overview     String?   @db.Text
+  posterPath   String?
+  airDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  media    Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  episodes Episode[]
+
+  @@unique([mediaId, seasonNumber])
+  @@map("seasons")
+}
+
+model Episode {
+  id            String    @id @default(uuid())
+  seasonId      String
+  episodeNumber Int
+  title         String?
+  overview      String?   @db.Text
+  stillPath     String?
+  airDate       DateTime?
+  runtime       Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  season     Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  mediaFiles MediaFile[]
+
+  @@unique([seasonId, episodeNumber])
+  @@map("episodes")
+}
+
+// ──────────────────────────────────────────────
+// FILES & SUBTITLES
+// ──────────────────────────────────────────────
+
+model MediaFile {
+  id              String   @id @default(uuid())
+  filePath        String   @unique @db.VarChar(1024)
+  fileName        String
+  fileSize        BigInt
+  fileHash        String?
+  containerFormat String?
+  videoCodec      String?
+  audioCodec      String?
+  resolution      String?
+  duration        Int?
+  bitrate         Int?
+  channels        Int?
+  isHdr           Boolean  @default(false)
+  libraryPathId   String
+  mediaId         String?
+  episodeId       String?
+  addedAt         DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  libraryPath  LibraryPath    @relation(fields: [libraryPathId], references: [id], onDelete: Cascade)
+  media        Media?         @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  episode      Episode?       @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  subtitles    Subtitle[]
+  watchHistory WatchHistory[]
+
+  @@index([mediaId])
+  @@index([episodeId])
+  @@index([libraryPathId])
+  @@map("media_files")
+}
+
+model Subtitle {
+  id           String         @id @default(uuid())
+  mediaFileId  String
+  filePath     String         @unique @db.VarChar(1024)
+  language     String
+  languageName String?
+  format       SubtitleFormat
+  isDefault    Boolean        @default(false)
+  isForced     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+
+  mediaFile MediaFile @relation(fields: [mediaFileId], references: [id], onDelete: Cascade)
+
+  @@index([mediaFileId])
+  @@map("subtitles")
+}
+
+// ──────────────────────────────────────────────
+// LIBRARY MANAGEMENT
+// ──────────────────────────────────────────────
+
+model LibraryPath {
+  id         String     @id @default(uuid())
+  path       String     @unique @db.VarChar(1024)
+  name       String
+  mediaType  MediaType
+  scanStatus ScanStatus @default(IDLE)
+  lastScanAt DateTime?
+  autoScan   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  mediaFiles MediaFile[]
+
+  @@map("library_paths")
+}
+
+// ──────────────────────────────────────────────
+// USER ACTIVITY
+// ──────────────────────────────────────────────
+
+model WatchHistory {
+  id          String   @id @default(uuid())
+  profileId   String
+  mediaFileId String
+  progress    Int      @default(0)
+  duration    Int
+  percentage  Float    @default(0)
+  completed   Boolean  @default(false)
+  watchedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  mediaFile MediaFile @relation(fields: [mediaFileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, mediaFileId])
+  @@index([profileId, watchedAt])
+  @@map("watch_history")
+}
+
+model Watchlist {
+  id        String   @id @default(uuid())
+  profileId String
+  mediaId   String
+  addedAt   DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, mediaId])
+  @@index([profileId, addedAt])
+  @@map("watchlist")
+}
+
+// ──────────────────────────────────────────────
+// IPTV
+// ──────────────────────────────────────────────
+
+model IptvPlaylist {
+  id              String    @id @default(uuid())
+  name            String
+  url             String?   @db.VarChar(1024)
+  fileName        String?
+  channelCount    Int       @default(0)
+  lastRefreshedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  channels       IptvChannel[]
+  xtreamProvider XtreamProvider?
+
+  @@map("iptv_playlists")
+}
+
+model IptvChannel {
+  id         String  @id @default(uuid())
+  playlistId String
+  name       String
+  logoUrl    String? @db.VarChar(1024)
+  group      String?
+  streamUrl  String  @db.VarChar(2048)
+  tvgId      String?
+  order      Int     @default(0)
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  playlist IptvPlaylist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@index([playlistId])
+  @@index([group])
+  @@index([name])
+  @@map("iptv_channels")
+}
+
+model XtreamProvider {
+  id                 String    @id @default(uuid())
+  name               String
+  serverUrl          String    @db.VarChar(1024)
+  username           String
+  password           String
+  selectedCategories String?   @db.Text // JSON: [{"id":"1","name":"Sports"},...]
+  autoRefresh        Boolean   @default(false)
+  refreshIntervalH   Int       @default(24)
+  lastRefreshedAt    DateTime?
+  playlistId         String?   @unique
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  playlist IptvPlaylist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
+
+  @@map("xtream_providers")
+}
+
+// ──────────────────────────────────────────────
+// XTREAM CODES API
+// ──────────────────────────────────────────────
+
+model XtreamCode {
+  id        String   @id @default(uuid())
+  userId    String
+  username  String   @unique
+  password  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([username, password])
+  @@map("xtream_codes")
+}
+
+// ──────────────────────────────────────────────
+// APP SETTINGS
+// ──────────────────────────────────────────────
+
+model Setting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
