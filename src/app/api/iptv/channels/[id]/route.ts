@@ -24,5 +24,10 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(channel);
+  // Return a proxied stream URL instead of the direct provider URL
+  // This avoids CORS/mixed-content issues on mobile browsers
+  return NextResponse.json({
+    ...channel,
+    streamUrl: `/api/iptv/channels/${channel.id}/stream`,
+  });
 }

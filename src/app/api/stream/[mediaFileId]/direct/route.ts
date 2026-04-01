@@ -28,27 +28,10 @@ export async function GET(
 
   const filePath = mediaFile.filePath;
 
-  // Remote stream (IPTV provider) → proxy
+  // Remote stream (IPTV provider) → redirect to source
+  // Direct redirect is more compatible with mobile Safari and avoids proxy issues
   if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
-    const headers: Record<string, string> = { "User-Agent": "IPTVSmartersPro" };
-    const range = req.headers.get("range");
-    if (range) headers["Range"] = range;
-
-    const upstream = await fetch(filePath, { headers }).catch(() => null);
-    if (!upstream || (!upstream.ok && upstream.status !== 206)) {
-      return NextResponse.json({ error: "Stream indisponible" }, { status: 502 });
-    }
-
-    const respHeaders = new Headers();
-    const ct = upstream.headers.get("content-type");
-    if (ct) respHeaders.set("Content-Type", ct);
-    const cl = upstream.headers.get("content-length");
-    if (cl) respHeaders.set("Content-Length", cl);
-    const cr = upstream.headers.get("content-range");
-    if (cr) respHeaders.set("Content-Range", cr);
-    respHeaders.set("Accept-Ranges", "bytes");
-
-    return new Response(upstream.body, { status: upstream.status, headers: respHeaders });
+    return NextResponse.redirect(filePath, 302);
   }
 
   let fileStats;
