@@ -1,0 +1,21 @@
+services:
+  streamr:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=production
+      - FFMPEG_PATH=ffmpeg
+      - FFPROBE_PATH=ffprobe
+    volumes:
+      - cache:/app/tmp
+      - images:/app/public/images/media
+    restart: unless-stopped
+
+volumes:
+  cache:
+  images:
