@@ -58,14 +58,14 @@ export default function XtreamPage() {
       body: JSON.stringify({ userId: selectedUserId, username: customUsername || undefined }),
     });
     if (res.ok) {
-      toast.success("Identifiants Xtream créés");
+      toast("Identifiants Xtream créés", "success");
       setShowCreate(false);
       setSelectedUserId("");
       setCustomUsername("");
       loadCodes();
     } else {
       const err = await res.json();
-      toast.error(err.error || "Erreur");
+      toast(err.error || "Erreur", "error");
     }
     setCreating(false);
   }
@@ -83,7 +83,7 @@ export default function XtreamPage() {
     if (!confirm("Supprimer ces identifiants Xtream ?")) return;
     const res = await fetch(`/api/admin/xtream/${id}`, { method: "DELETE" });
     if (res.ok) {
-      toast.success("Supprimé");
+      toast("Supprimé", "success");
       loadCodes();
     }
   }
@@ -99,7 +99,7 @@ export default function XtreamPage() {
 
   function copyToClipboard(text: string, label: string) {
     navigator.clipboard.writeText(text);
-    toast.success(`${label} copié`);
+    toast(`${label} copié`, "success");
   }
 
   const serverUrl = typeof window !== "undefined" ? window.location.origin : "";
