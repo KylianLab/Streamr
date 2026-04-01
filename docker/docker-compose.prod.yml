@@ -11,6 +11,7 @@ services:
       - NODE_ENV=production
       - FFMPEG_PATH=ffmpeg
       - FFPROBE_PATH=ffprobe
+      - AUTH_TRUST_HOST=true
     volumes:
       - cache:/app/tmp
       - images:/app/public/images/media
