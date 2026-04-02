@@ -32,8 +32,12 @@ export async function GET(
     where: { id: mediaFileId },
   });
 
-  if (!mediaFile || !mediaFile.duration) {
+  if (!mediaFile) {
     return NextResponse.json({ error: "Fichier non trouvé" }, { status: 404 });
+  }
+
+  if (!mediaFile.duration) {
+    return NextResponse.json({ error: "Durée inconnue" }, { status: 400 });
   }
 
   const playlist = generateQualityPlaylist(
