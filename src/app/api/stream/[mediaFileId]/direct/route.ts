@@ -28,10 +28,27 @@ export async function GET(
 
   const filePath = mediaFile.filePath;
 
-  // Remote stream (IPTV provider) → redirect to source
-  // IPTV providers authenticate by IP, so the client browser must connect directly
+  // Remote stream (IPTV provider) → proxy through server
+  // Redirect doesn't work because HTTPS→HTTP is blocked by browsers (mixed content)
   if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
-    return NextResponse.redirect(filePath, 302);
+    const range = req.headers.get("range");
+    const headers: Record<string, string> = {
+      "User-Agent": "IPTVSmartersPro",
+    };
+    if (range) headers["Range"] = range;
+
+    const upstream = await fetch(filePath, { headers });
+
+    return new Response(upstream.body, {
+      status: upstream.status === 200 || upstream.status === 206 ? upstream.status : upstream.status,
+      headers: {
+        "Content-Type": upstream.headers.get("content-type") || "video/mp4",
+        ...(upstream.headers.get("content-length") && { "Content-Length": upstream.headers.get("content-length")! }),
+        ...(upstream.headers.get("content-range") && { "Content-Range": upstream.headers.get("content-range")! }),
+        ...(upstream.headers.get("accept-ranges") && { "Accept-Ranges": upstream.headers.get("accept-ranges")! }),
+        "Cache-Control": "no-cache, no-store",
+      },
+    });
   }
 
   let fileStats;
