@@ -48,7 +48,7 @@ export function TvPlayer({
       if (!v || destroyed) return;
 
       const isHls =
-        streamUrl.includes(".m3u8") || streamUrl.includes("m3u8");
+        streamUrl.includes(".m3u8") || streamUrl.includes("m3u8") || streamUrl.includes("/api/iptv/");
 
       if (isHls) {
         const Hls = (await import("hls.js")).default;
