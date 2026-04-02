@@ -56,7 +56,7 @@ export default function TvWatchPage({ params }: { params: Promise<{ id: string }
   return (
     <div className="fixed inset-0 z-50 bg-black">
       <TvPlayer
-        streamUrl={channel.streamUrl}
+        streamUrl={`/api/iptv/channels/${id}/stream`}
         channelName={channel.name}
         channelLogo={channel.logoUrl || undefined}
         onBack={() => router.push("/tv")}
