@@ -3,19 +3,28 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSegment } from "@/lib/transcode-manager";
 import { Quality, QUALITY_PROFILES } from "@/config/constants";
+import { verifyStreamToken } from "@/lib/stream-token";
 
 export const maxDuration = 60;
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ mediaFileId: string; quality: string; segment: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-
   const { mediaFileId, quality, segment } = await params;
+
+  // Auth via session cookie OR stream token (for Safari native HLS)
+  const token = req.nextUrl.searchParams.get("token");
+  if (token) {
+    if (!verifyStreamToken(token, mediaFileId)) {
+      return NextResponse.json({ error: "Token invalide" }, { status: 401 });
+    }
+  } else {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
+  }
 
   if (!(quality in QUALITY_PROFILES)) {
     return NextResponse.json({ error: "Qualité invalide" }, { status: 400 });

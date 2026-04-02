@@ -9,6 +9,7 @@ export async function middleware(req: NextRequest) {
   const publicRoutes = ["/login", "/register"];
   const isPublic = publicRoutes.some((route) => pathname.startsWith(route));
   const isAuthApi = pathname.startsWith("/api/auth");
+  const isStreamApi = pathname.startsWith("/api/stream");
   const isXtreamApi = pathname.startsWith("/api/xtream")
     || pathname === "/player_api.php"
     || pathname === "/get.php"
@@ -16,7 +17,7 @@ export async function middleware(req: NextRequest) {
     || pathname.startsWith("/movie/")
     || pathname.startsWith("/series/");
 
-  if (isPublic || isAuthApi || isXtreamApi) {
+  if (isPublic || isAuthApi || isStreamApi || isXtreamApi) {
     return NextResponse.next();
   }
 

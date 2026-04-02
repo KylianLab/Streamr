@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { determinePlaybackStrategy } from "@/lib/playback-strategy";
+import { generateStreamToken } from "@/lib/stream-token";
 
 export async function GET(
   _req: NextRequest,
@@ -29,9 +30,10 @@ export async function GET(
     const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|CriOS/i.test(ua);
 
     if (isSafari) {
+      const token = generateStreamToken(mediaFile.id);
       return NextResponse.json({
         mode: "transcode",
-        url: `/api/stream/${mediaFile.id}/master.m3u8`,
+        url: `/api/stream/${mediaFile.id}/master.m3u8?token=${token}`,
         mimeType: "application/vnd.apple.mpegurl",
         needsHlsJs: false,
         duration: mediaFile.duration,
