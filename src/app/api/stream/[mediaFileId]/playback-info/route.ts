@@ -22,8 +22,27 @@ export async function GET(
     return NextResponse.json({ error: "Fichier non trouvé" }, { status: 404 });
   }
 
-  // Remote stream (IPTV provider) → direct proxy, skip codec analysis
+  // Remote stream (IPTV provider) → proxy, skip codec analysis
   if (mediaFile.filePath.startsWith("http://") || mediaFile.filePath.startsWith("https://")) {
+    // Safari/iOS cannot play proxied streams without Range support → use HLS transcode
+    const ua = _req.headers.get("user-agent") || "";
+    const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|CriOS/i.test(ua);
+
+    if (isSafari) {
+      return NextResponse.json({
+        mode: "transcode",
+        url: `/api/stream/${mediaFile.id}/master.m3u8`,
+        mimeType: "application/vnd.apple.mpegurl",
+        needsHlsJs: false,
+        duration: mediaFile.duration,
+        qualities: [
+          { height: 1080, label: "1080p" },
+          { height: 720, label: "720p" },
+          { height: 480, label: "480p" },
+        ],
+      });
+    }
+
     return NextResponse.json({
       mode: "direct",
       url: `/api/stream/${mediaFile.id}/direct`,
